@@ -1,0 +1,29 @@
+{
+  "terrain": {
+    "prefabPath": "Prefabs/Terrain/BasePlatform",
+    "spawnPoints": [
+      {"x":0, "y":0, "z":0}
+    ]
+  },
+  "powerUps": [
+    {
+      "type": "MultiBall",
+      "position": {"x":-2, "y":1, "z":0},
+      "spawnChance": 0.3
+    }
+  ],
+  "enemies": [
+    {
+      "type": "BasicMonster",
+      "path": [
+        {"x":-5, "y":0, "z":5},
+        {"x":5, "y":0, "z":5}
+      ],
+      "speed": 2.5
+    }
+  ],
+  "ballProperties": {
+    "mass": 1.2,
+    "bounciness": 0.8
+  }
+}
