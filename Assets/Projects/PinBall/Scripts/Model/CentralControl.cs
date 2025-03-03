@@ -1,6 +1,9 @@
 using UnityEngine;
 
-public class CentralControl : MonoBehaviour
+namespace Cool.Dcm.Game.PinBall
+{
+    
+    public class CentralControl : MonoBehaviour
 {
     public Transform targetObject; // 新增目标物体引用
     public PaddleController leftPaddle;
@@ -105,6 +108,7 @@ public class CentralControl : MonoBehaviour
         {
             if (ball != null && targetObject != null)
             {
+                CameraController.Instance.SwitchToLaunchView();
                 isAtResetPosition= true;
                 CalculateResetPosition();
                 Debug.Log("Reset Ball Position");
@@ -225,6 +229,7 @@ public class CentralControl : MonoBehaviour
                 selectedRigidbody = null;
             }
             selectedObject = null;
+            CameraController.Instance.SwitchToHitView();
         }
 
         if (isDragging && selectedObject != null)
@@ -400,4 +405,6 @@ public class CentralControl : MonoBehaviour
         );
         return gradient;
     }
+}
+
 }

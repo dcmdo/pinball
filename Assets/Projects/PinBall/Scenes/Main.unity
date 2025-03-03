@@ -159,6 +159,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &75543404
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 75543405}
+  m_Layer: 0
+  m_Name: LaunchView
+  m_TagString: MainCamera
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &75543405
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 75543404}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.30070576, y: 0, z: 0, w: 0.953717}
+  m_LocalPosition: {x: 0, y: 50, z: -80}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1724230474}
+  m_LocalEulerAnglesHint: {x: 35, y: 0, z: 0}
 --- !u!1 &278553613
 GameObject:
   m_ObjectHideFlags: 0
@@ -391,6 +422,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 42.5, y: 260, z: 0}
+--- !u!1 &1313059442
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1313059443}
+  m_Layer: 0
+  m_Name: HitView
+  m_TagString: MainCamera
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1313059443
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1313059442}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.5, y: 0, z: 0, w: 0.8660254}
+  m_LocalPosition: {x: 0, y: 90, z: -50}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1724230474}
+  m_LocalEulerAnglesHint: {x: 60, y: 0, z: 0}
 --- !u!1 &1320179021
 GameObject:
   m_ObjectHideFlags: 0
@@ -402,6 +464,7 @@ GameObject:
   - component: {fileID: 1320179024}
   - component: {fileID: 1320179023}
   - component: {fileID: 1320179022}
+  - component: {fileID: 1320179025}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -476,13 +539,29 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1320179021}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.30070576, y: 0, z: 0, w: 0.953717}
-  m_LocalPosition: {x: 0, y: 50, z: -80}
+  m_LocalRotation: {x: 0.5, y: 0, z: 0, w: 0.8660254}
+  m_LocalPosition: {x: 0, y: 90, z: -50}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1724230474}
-  m_LocalEulerAnglesHint: {x: 35, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 60, y: 0, z: 0}
+--- !u!114 &1320179025
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1320179021}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7abdc549966ebbe449cea5950cee84f1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mainCamera: {fileID: 0}
+  LaunchView: {fileID: 75543405}
+  HitView: {fileID: 1313059443}
+  moveSpeed: 5
 --- !u!1 &1482129562 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 1352643849977908795, guid: 8b7f0d02df019204c9b264a1fbd88f2f, type: 3}
@@ -523,6 +602,8 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1320179024}
+  - {fileID: 75543405}
+  - {fileID: 1313059443}
   - {fileID: 5348986318762813011}
   - {fileID: 891039854487531570}
   - {fileID: 2251246282320755474}
@@ -663,6 +744,12 @@ MonoBehaviour:
   maxAngle: 60
   minAngle: 120
   rotateSpeed: 5
+  trajectoryLine: {fileID: 0}
+  predictionPoints: 20
+  predictionStep: 0.1
+  collisionMask:
+    serializedVersion: 2
+    m_Bits: 0
   paddle: {fileID: 0}
 --- !u!4 &891039854487531570 stripped
 Transform:
@@ -682,7 +769,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   targetObject: {fileID: 2000289496}
-  initialTransHeight: 0.2224817
   leftPaddle: {fileID: 2011639391}
   rightPaddle: {fileID: 1300410259683463897}
   ball: {fileID: 2251246282320755475}
@@ -738,6 +824,12 @@ MonoBehaviour:
   maxAngle: -60
   minAngle: -120
   rotateSpeed: 5
+  trajectoryLine: {fileID: 0}
+  predictionPoints: 20
+  predictionStep: 0.1
+  collisionMask:
+    serializedVersion: 2
+    m_Bits: 0
   paddle: {fileID: 0}
 --- !u!23 &1957457626374457463
 MeshRenderer:

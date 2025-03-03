@@ -1,6 +1,8 @@
 using UnityEngine;
 
-public class BallController : MonoBehaviour
+namespace Cool.Dcm.Game.PinBall
+{
+    public class BallController : MonoBehaviour
 {
     private Rigidbody rb;
     private ConstantForce force;
@@ -102,4 +104,5 @@ public class BallController : MonoBehaviour
         Gizmos.DrawRay(pos + direction*10, right * 1.2f);
         Gizmos.DrawRay(pos + direction*10, left * 1.2f);
     }
+}
 }
