@@ -741,12 +741,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39d964b1802d82242b181a9fc64a8d99, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hitForce: 50
+  lineDuration: 5
+  paddleAction: {fileID: 0}
   maxAngle: 60
   minAngle: 120
   rotateSpeed: 5
   trajectoryLine: {fileID: 0}
-  predictionPoints: 20
-  predictionStep: 0.1
+  predictionPoints: 100
+  predictionStep: 1
   collisionMask:
     serializedVersion: 2
     m_Bits: 0
@@ -821,6 +824,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39d964b1802d82242b181a9fc64a8d99, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  hitForce: 10
+  lineDuration: 0.5
+  paddleAction: {fileID: 0}
   maxAngle: -60
   minAngle: -120
   rotateSpeed: 5
@@ -1021,6 +1027,10 @@ PrefabInstance:
     - target: {fileID: 1352643849977908795, guid: 8b7f0d02df019204c9b264a1fbd88f2f, type: 3}
       propertyPath: m_Name
       value: ball
+      objectReference: {fileID: 0}
+    - target: {fileID: 1352643849977908795, guid: 8b7f0d02df019204c9b264a1fbd88f2f, type: 3}
+      propertyPath: m_TagString
+      value: Ball
       objectReference: {fileID: 0}
     - target: {fileID: 8626305791636273155, guid: 8b7f0d02df019204c9b264a1fbd88f2f, type: 3}
       propertyPath: m_LocalPosition.x

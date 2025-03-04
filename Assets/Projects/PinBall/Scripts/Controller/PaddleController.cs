@@ -4,11 +4,73 @@ using UnityEngine.InputSystem;
 
 namespace Cool.Dcm.Game.PinBall
 {
-    public class PaddleController : MonoBehaviour
+public class PaddleController : MonoBehaviour
+{
+    [Header("Collision Settings")]
+    [SerializeField] private float hitForce = 10f;
+    [SerializeField] private float lineDuration = 0.5f;
+    [SerializeField] private InputActionReference paddleAction; // 使用Input System的输入配置
+
+
+    private bool isBallContact;
+    private BallController contactBall;
+    private Vector3 contactPoint;
+    
+    private void OnCollisionEnter(Collision collision)
     {
+        if (collision.gameObject.CompareTag("Ball"))
+        {
+            isBallContact = true;
+            contactBall = collision.gameObject.GetComponent<BallController>();
+            contactPoint = collision.contacts[0].point;
+        }
+    }
+
+    private void Update()
+    {
+        if (paddleAction.action.WasPressedThisFrame())
+        {
+            RotatePaddle(1f); // 按下时翘起挡板
+        }
+        else if (paddleAction.action.WasReleasedThisFrame())
+        {
+            RotatePaddle(0f); // 抬起时恢复原位
+            TryLaunchBall();
+        }
+    }
+
+    private void TryLaunchBall()
+    {
+        if (isBallContact && contactBall != null)
+        {
+            Vector3 hitNormal = (contactBall.transform.position - contactPoint).normalized;
+            Vector3 reflectDir = Vector3.Reflect(contactBall.GetVelocity().normalized, hitNormal);
+            
+            contactBall.AddForce(reflectDir * hitForce, ForceMode.Impulse);
+            DrawTrajectory(contactPoint, reflectDir);
+            
+            // 重置状态
+            isBallContact = false;
+            contactBall = null;
+        }
+    }
+
+    private void DrawTrajectory(Vector3 startPos, Vector3 direction)
+    {
+        trajectoryLine.positionCount = 2;
+        trajectoryLine.SetPosition(0, startPos);
+        trajectoryLine.SetPosition(1, startPos + direction * 3f);
+        StartCoroutine(ClearTrajectory());
+    }
+
+    private System.Collections.IEnumerator ClearTrajectory()
+    {
+        yield return new WaitForSeconds(lineDuration);
+        trajectoryLine.positionCount = 0;
+    }
         [Header("Rotation Settings")]
-        [SerializeField] private float maxAngle = 60f;
-        [SerializeField] private float minAngle = 120f;
+        [SerializeField] private float maxAngle = 60f; // 挡板抬起角度
+        [SerializeField] private float minAngle = 0f;  // 挡板默认角度
         [SerializeField] private float rotateSpeed = 5f;
         
         [Header("Trajectory Settings")] 

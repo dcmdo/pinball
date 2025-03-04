@@ -41,6 +41,16 @@ namespace Cool.Dcm.Game.PinBall
         rb.AddForce(direction.normalized * 150f, ForceMode.Impulse);
     }
 
+    public Vector3 GetVelocity()
+    {
+        return rb.velocity;
+    }
+
+    public void AddForce(Vector3 force, ForceMode mode)
+    {
+        rb.AddForce(force, mode);
+    }
+
 
     void OnCollisionStay(Collision collision) {
         // Check if colliding with ground (you may want to use tags or layers)
