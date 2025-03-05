@@ -9,7 +9,7 @@ public class PaddleController : MonoBehaviour
     [Header("Collision Settings")]
     [SerializeField] private float hitForce = 10f;
     [SerializeField] private float lineDuration = 0.5f;
-    [SerializeField] private InputActionReference paddleAction; // 使用Input System的输入配置
+    [SerializeField] private InputAction paddleAction; // 使用Input System的输入配置
 
 
     private bool isBallContact;
@@ -28,15 +28,15 @@ public class PaddleController : MonoBehaviour
 
     private void Update()
     {
-        if (paddleAction.action.WasPressedThisFrame())
-        {
-            RotatePaddle(1f); // 按下时翘起挡板
-        }
-        else if (paddleAction.action.WasReleasedThisFrame())
-        {
-            RotatePaddle(0f); // 抬起时恢复原位
-            TryLaunchBall();
-        }
+        // if (paddleAction.action.WasPressedThisFrame())
+        // {
+        //     RotatePaddle(1f); // 按下时翘起挡板
+        // }
+        // else if (paddleAction.action.WasReleasedThisFrame())
+        // {
+        //     RotatePaddle(0f); // 抬起时恢复原位
+        //     TryLaunchBall();
+        // }
     }
 
     private void TryLaunchBall()
