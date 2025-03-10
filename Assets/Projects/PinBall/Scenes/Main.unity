@@ -803,18 +803,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitForce: 50
   lineDuration: 5
-  paddleAction:
-    m_Name: 
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: 819b9d64-426a-440b-884f-a94072235177
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings: []
-    m_Flags: 0
   maxAngle: 60
   minAngle: 120
-  rotateSpeed: 5
+  rotateTime: 1
   trajectoryLine: {fileID: 0}
   predictionPoints: 100
   predictionStep: 1
@@ -925,42 +916,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitForce: 10
   lineDuration: 0.5
-  paddleAction:
-    m_Name: Paddle
-    m_Type: 1
-    m_ExpectedControlType: Button
-    m_Id: e6cddb09-a21f-4b5a-a87d-efbdf00af847
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 
-      m_Id: 6b6bb602-025d-4d66-a7ef-75b358041e4f
-      m_Path: <Keyboard>/#(D)
-      m_Interactions: Press(behavior=2)
-      m_Processors: 
-      m_Groups: 
-      m_Action: Paddle
-      m_Flags: 0
-    - m_Name: 
-      m_Id: d7b86695-99c6-4ec7-9dc7-94bf4d8c4356
-      m_Path: <Mouse>/rightButton
-      m_Interactions: Tap
-      m_Processors: NormalizeVector2
-      m_Groups: 
-      m_Action: Paddle
-      m_Flags: 0
-    - m_Name: 
-      m_Id: d79c6df8-d8e6-4905-96ec-432fb6cfb0ef
-      m_Path: <Touchscreen>/Press
-      m_Interactions: Tap
-      m_Processors: 
-      m_Groups: 
-      m_Action: Paddle
-      m_Flags: 0
-    m_Flags: 1
   maxAngle: -60
   minAngle: -120
-  rotateSpeed: 5
+  rotateTime: 1
   trajectoryLine: {fileID: 0}
   predictionPoints: 20
   predictionStep: 0.1

@@ -4,90 +4,37 @@ using UnityEngine.InputSystem;
 
 namespace Cool.Dcm.Game.PinBall
 {
-public class PaddleController : MonoBehaviour
-{
-    [Header("Collision Settings")]
-    [SerializeField] private float hitForce = 10f;
-    [SerializeField] private float lineDuration = 0.5f;
-    [SerializeField] private InputAction paddleAction; // 使用Input System的输入配置
-
-
-    private bool isBallContact;
-    private BallController contactBall;
-    private Vector3 contactPoint;
-    
-    private void OnCollisionEnter(Collision collision)
+    public class PaddleController : MonoBehaviour
     {
-        if (collision.gameObject.CompareTag("Ball"))
-        {
-            isBallContact = true;
-            contactBall = collision.gameObject.GetComponent<BallController>();
-            contactPoint = collision.contacts[0].point;
-        }
-    }
-
-    private void Update()
-    {
-        // if (paddleAction.action.WasPressedThisFrame())
-        // {
-        //     RotatePaddle(1f); // 按下时翘起挡板
-        // }
-        // else if (paddleAction.action.WasReleasedThisFrame())
-        // {
-        //     RotatePaddle(0f); // 抬起时恢复原位
-        //     TryLaunchBall();
-        // }
-    }
-
-    private void TryLaunchBall()
-    {
-        if (isBallContact && contactBall != null)
-        {
-            Vector3 hitNormal = (contactBall.transform.position - contactPoint).normalized;
-            Vector3 reflectDir = Vector3.Reflect(contactBall.GetVelocity().normalized, hitNormal);
-            
-            contactBall.AddForce(reflectDir * hitForce, ForceMode.Impulse);
-            DrawTrajectory(contactPoint, reflectDir);
-            
-            // 重置状态
-            isBallContact = false;
-            contactBall = null;
-        }
-    }
-
-    private void DrawTrajectory(Vector3 startPos, Vector3 direction)
-    {
-        trajectoryLine.positionCount = 2;
-        trajectoryLine.SetPosition(0, startPos);
-        trajectoryLine.SetPosition(1, startPos + direction * 3f);
-        StartCoroutine(ClearTrajectory());
-    }
-
-    private System.Collections.IEnumerator ClearTrajectory()
-    {
-        yield return new WaitForSeconds(lineDuration);
-        trajectoryLine.positionCount = 0;
-    }
+        [Header("Collision Settings")]
+        [SerializeField] private float hitForce = 10f;
+        [SerializeField] private float lineDuration = 0.5f;
         [Header("Rotation Settings")]
         [SerializeField] private float maxAngle = 60f; // 挡板抬起角度
         [SerializeField] private float minAngle = 0f;  // 挡板默认角度
-        [SerializeField] private float rotateSpeed = 5f;
+        [SerializeField] private float rotateTime = 1f; // 增加旋转速度
         
         [Header("Trajectory Settings")] 
         [SerializeField] private LineRenderer trajectoryLine;
         [SerializeField] private int predictionPoints = 20;
         [SerializeField] private float predictionStep = 0.1f;
         [SerializeField] private LayerMask collisionMask;
-
         [SerializeField] private GameObject paddle;
-        private Keyboard keybord;
         private BallController currentBall;
 
         private Vector3 currentDirection;
+        private float currentRotateTime = 0;
+        private float targetAngle;
+
+        private bool isBallContact;
+        private BallController contactBall;
+        private Vector3 contactPoint;
+        
+        
 
         private void Start()
         {
-            keybord = Keyboard.current;
+
             if(paddle == null)
             {
                 paddle = gameObject;
@@ -140,16 +87,44 @@ public class PaddleController : MonoBehaviour
             };
         }
 
-
-        public void RotatePaddle(float input, float speedMultiplier = 1f)
+        private void Update()
         {
-            float targetAngle = Mathf.Lerp(minAngle, maxAngle, input);
-            float currentAngle = paddle.transform.rotation.eulerAngles.y;
-            float smoothAngle = Mathf.MoveTowardsAngle(currentAngle, targetAngle, rotateSpeed * speedMultiplier);
-            paddle.transform.rotation = Quaternion.Euler(0, smoothAngle, 0);
-
-            UpdateTrajectory();
+            if (IsAngleGreaterThanThreshold(paddle.transform.eulerAngles.y, targetAngle,0.01f))
+            {
+                // 获取当前角度并处理360度环绕
+                float currentAngle = paddle.transform.eulerAngles.y;
+                currentAngle = Mathf.Repeat(currentAngle + 180f, 360f) - 180f;
+            
+                float smoothAngle = Mathf.LerpAngle(currentAngle, targetAngle, currentRotateTime/rotateTime);
+                currentRotateTime += Time.deltaTime;
+                paddle.transform.rotation = Quaternion.Euler(0, smoothAngle, 0);
+            }
         }
+
+        private void OnCollisionEnter(Collision collision)
+        {
+            if (collision.gameObject.CompareTag("Ball"))
+            {
+                isBallContact = true;
+                contactBall = collision.gameObject.GetComponent<BallController>();
+                contactPoint = collision.contacts[0].point;
+            }
+        }
+        public void RotatePaddle(bool isPressed)
+        {
+            // 根据按钮状态设置目标角度
+            targetAngle = isPressed ? maxAngle : minAngle;
+            currentRotateTime = 0;
+            if(isPressed&&currentBall){
+                currentBall.Launch(currentDirection);
+            }
+        }
+
+        bool IsAngleGreaterThanThreshold(float currentAngle, float targetAngle, float threshold = 0.1f)
+        {
+            return Mathf.Abs(currentAngle - targetAngle) > threshold;
+        }
+
 
         void UpdateTrajectory()
         {
@@ -178,19 +153,38 @@ public class PaddleController : MonoBehaviour
             }
         }
 
-        // Vector3 CalculateReflectionDirection()
-        // {
-        //     Vector3 paddleNormal = paddle.transform.forward;
-        //     Rigidbody ballRb = currentBall.GetComponent<Rigidbody>();
+
+        private void TryLaunchBall()
+        {
+            if (isBallContact && contactBall != null)
+            {
+                Vector3 hitNormal = (contactBall.transform.position - contactPoint).normalized;
+                Vector3 reflectDir = Vector3.Reflect(contactBall.GetVelocity().normalized, hitNormal);
+                
+                contactBall.AddForce(reflectDir * hitForce, ForceMode.Impulse);
+                DrawTrajectory(contactPoint, reflectDir);
+                
+                // 重置状态
+                isBallContact = false;
+                contactBall = null;
+            }
+        }
+
+        private void DrawTrajectory(Vector3 startPos, Vector3 direction)
+        {
+            trajectoryLine.positionCount = 2;
+            trajectoryLine.SetPosition(0, startPos);
+            trajectoryLine.SetPosition(1, startPos + direction * 3f);
+            StartCoroutine(ClearTrajectory());
+        }
+
+        private System.Collections.IEnumerator ClearTrajectory()
+        {
+            yield return new WaitForSeconds(lineDuration);
+            trajectoryLine.positionCount = 0;
+        }
             
-        //     // 当球静止时使用挡板方向作为默认发射方向
-        //     if (ballRb.velocity.magnitude < 0.1f)
-        //     {
-        //         return paddleNormal * 15f; // 给一个合理的初始速度
-        //     }
-            
-        //     return Vector3.Reflect(ballRb.velocity.normalized, paddleNormal);
-        // }
+
 
         private List<Vector3> PredictTrajectory(Vector3 startPos, Vector3 initialVelocity)
         {
@@ -286,19 +280,6 @@ public class PaddleController : MonoBehaviour
             currentDirection = dir;
             UpdateTrajectory();
         }
-
-        // public void ReleaseBall()
-        // {
-        //     if (currentBall != null)
-        //     {
-        //         currentBall.Launch(CalculateReflectionDirection());
-        //         currentBall = null;
-        //         if(trajectoryLine != null)
-        //         {
-        //             trajectoryLine.enabled = false;
-        //         }
-        //     }
-        // }
     }
 
 }

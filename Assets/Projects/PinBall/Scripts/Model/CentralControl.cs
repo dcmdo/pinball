@@ -4,7 +4,6 @@ using UnityEngine.InputSystem;
 
 namespace Cool.Dcm.Game.PinBall
 {
-    
     public class CentralControl : MonoBehaviour
     {
         public Transform targetObject; // 新增目标物体引用
@@ -72,11 +71,12 @@ namespace Cool.Dcm.Game.PinBall
 
         [SerializeField] private PlayerInput playerInput;
 
+        private bool isPaused = false;
+
         void Awake()
         {
             
             playerInput = GetComponent<PlayerInput>();
-            playerInput.enabled = true;
             playerInput.onActionTriggered +=HandleInput;
             // 初始化重置位置（动态计算目标物体顶部）
             CalculateResetPosition();
@@ -95,7 +95,7 @@ namespace Cool.Dcm.Game.PinBall
 
         void Update()
         {
-            HandleKeyboardInput();
+            // HandleKeyboardInput();
             HandleMouseDrag();
 
             // 更新轨迹线
@@ -109,76 +109,60 @@ namespace Cool.Dcm.Game.PinBall
             }
         }
 
-        private float leftPaddleHoldStartTime;
-        private bool isLeftPaddleHolding;
-        private float leftPaddleValue;
-
-        private Coroutine leftReleaseCoroutine;
-        private const float MAX_HOLD_TIME = 1f; // 最大按住时间（秒）
-        private const float RELEASE_SPEED = 2f; 
         private void HandleInput(InputAction.CallbackContext context){
             switch (context.action.name)
             {
                 case "LeftPaddle":
-                Debug.Log($"LeftPaddle {context.ReadValueAsButton()}");
-                //通过按键时长计算出一个0-1的数值超过限定时间时，则返回1，松开按键时按时间值进行插值，得到一个0-1的数值
-                if (context.phase == InputActionPhase.Started)
-                {
-                    // 记录按下时间
-                    leftPaddleHoldStartTime = Time.time;
-                    isLeftPaddleHolding = true;
-                    StopCoroutine(leftReleaseCoroutine);
-                }
-                else if (context.phase == InputActionPhase.Canceled)
-                {
-                    // 松开时启动释放插值
-                    isLeftPaddleHolding = false;
-                    leftReleaseCoroutine = StartCoroutine(SmoothReleaseLeftPaddle(leftPaddle, leftPaddleValue));
-                }
+                    if (context.phase == InputActionPhase.Performed)
+                    {
+                        Debug.Log($"LeftPaddle Performed {context.ReadValueAsButton()}");
+                        leftPaddle.RotatePaddle(context.ReadValueAsButton());
+                    }
                     break;
                 case "RightPaddle":
-                Debug.Log($"RightPaddle {context.ReadValueAsButton()}");
+                    if (context.phase == InputActionPhase.Performed)
+                    {
+                        Debug.Log($"RightPaddle Performed {context.ReadValueAsButton()}");
+                        rightPaddle.RotatePaddle(context.ReadValueAsButton());
+                    }
                     break;
                 case "Launch":
-                Debug.Log($"Launch {context.ReadValue<Vector2>()}");
+                // Debug.Log($"Launch {context.ReadValue<Vector2>()}");
+                    break;
+                case "Pause":
+                    if (context.phase == InputActionPhase.Performed)
+                    {
+                        TogglePause();
+                    }
                     break;
                 case "ResetBall":
-                Debug.Log($"ResetBall {context.ReadValueAsButton()}");
+                    Debug.Log($"ResetBall {context.ReadValueAsButton()}");
+                    RestBallPos();
                     break;
             }
             
+        }
+
+        void TogglePause()
+        {
+            isPaused = !isPaused;
+            if (isPaused)
+            {
+                Time.timeScale = 0f;
+                Debug.Log("游戏已暂停");
+            }
+            else
+            {
+                Time.timeScale = 1f;
+                Debug.Log("游戏已继续"); 
+            }
         }
 
         // 平滑释放协程
-    private IEnumerator SmoothReleaseLeftPaddle(PaddleController paddleController,float targetPaddleValue)
-    {
-        float startValue = targetPaddleValue;
-        float elapsedTime = 0f;
-
-        while (elapsedTime < RELEASE_SPEED)
+        void RestBallPos()
         {
-            targetPaddleValue = Mathf.Lerp(startValue, 0f, elapsedTime / RELEASE_SPEED);
-            elapsedTime += Time.deltaTime;
-            
-            if (paddleController != null)
-            {
-                paddleController.RotatePaddle(targetPaddleValue);
-            }
-            yield return null;
-        }
-        
-        targetPaddleValue = 0f;
-        if (paddleController != null)
-        {
-            paddleController.RotatePaddle(targetPaddleValue);
-        }
-    }
-        void HandleKeyboardInput()
-        {
-            // 添加R键重置功能
-            if (Input.GetKeyDown(KeyCode.R))
-            {
-                if (ball != null && targetObject != null)
+            // 添加重置功能
+            if (ball != null && targetObject != null)
                 {
                     CameraController.Instance.SwitchToLaunchView();
                     isAtResetPosition= true;
@@ -220,17 +204,7 @@ namespace Cool.Dcm.Game.PinBall
                     Debug.Log($"Ball reset to position. Ready to drag: {isAtResetPosition}");
                     Debug.Log($"实际位置差异: {Vector3.Distance(ball.transform.position, resetPosition)}");
                 }
-            }
             
-            float inputValue = Input.GetAxis("Horizontal");
-            if (leftPaddle != null && inputValue < 0)
-            {
-                leftPaddle.RotatePaddle(-inputValue);
-            }
-            if (rightPaddle != null && inputValue > 0)
-            {
-                rightPaddle.RotatePaddle(inputValue);
-            }
         }
 
         private Transform selectedObject;
