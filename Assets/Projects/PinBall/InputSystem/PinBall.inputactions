@@ -33,7 +33,7 @@
                     "initialStateCheck": true
                 },
                 {
-                    "name": "RestBall",
+                    "name": "ResetBall",
                     "type": "Button",
                     "id": "4a714f4b-cb8c-4d10-9311-2b3443c446ab",
                     "expectedControlType": "Button",
@@ -246,7 +246,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "RestBall",
+                    "action": "ResetBall",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
