@@ -33,7 +33,7 @@ namespace Cool.Dcm.Game.PinBall
 
         void FixedUpdate()
         {
-            // rb.AddForce(0, 0, -30);
+
         }
         public void Launch(Vector3 direction,float force)
         {
@@ -54,7 +54,7 @@ namespace Cool.Dcm.Game.PinBall
 
         void OnCollisionStay(Collision collision) {
             // Check if colliding with ground (you may want to use tags or layers)
-            if (collision.gameObject.CompareTag("Ground")) {
+            if (collision.gameObject.CompareTag("Ground")&&!force.enabled) {
                 force.enabled = true;
             }
         }

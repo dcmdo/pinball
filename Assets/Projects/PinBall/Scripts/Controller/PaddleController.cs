@@ -4,6 +4,10 @@ using UnityEngine.InputSystem;
 
 namespace Cool.Dcm.Game.PinBall
 {
+    struct BallHitData{
+        public Vector3 hitDirection;
+        public float hitForce;
+    }
     public class PaddleController : MonoBehaviour
     {
         [Header("Collision Settings")]
@@ -15,9 +19,10 @@ namespace Cool.Dcm.Game.PinBall
         [SerializeField] private float rotateTime = 1f; // 增加旋转速度
         
         [SerializeField] private GameObject paddle;
-        private BallController currentBall;
+        private Dictionary<BallController,BallHitData> ballHitData = new Dictionary<BallController, BallHitData>();
 
-        private Vector3 currentDirection;
+        private Rigidbody rb;
+
         private float currentRotateTime = 0;
         private float targetAngle;
         
@@ -34,6 +39,15 @@ namespace Cool.Dcm.Game.PinBall
             {
                 paddle = gameObject;
             }
+            rb = GetComponent<Rigidbody>();
+            if (rb == null)
+            {
+                rb = gameObject.AddComponent<Rigidbody>();
+            }
+            
+            rb.interpolation = RigidbodyInterpolation.Interpolate;
+            rb.constraints = RigidbodyConstraints.FreezeAll;
+            rb.isKinematic = true;
         }
 
         private void Update()
@@ -55,14 +69,73 @@ namespace Cool.Dcm.Game.PinBall
             // 根据按钮状态设置目标角度
             targetAngle = isPressed ? maxAngle : minAngle;
             currentRotateTime = 0;
-            if(isPressed&&currentBall){
-                currentBall.Launch(currentDirection,hitForce);
+            if(isPressed&&ballHitData.Count>0){
+                foreach(var ball in ballHitData){
+                    ball.Key.Launch(ball.Value.hitDirection,ball.Value.hitForce);
+                }
             }
         }
 
         bool IsAngleGreaterThanThreshold(float currentAngle, float targetAngle, float threshold = 0.1f)
         {
             return Mathf.Abs(currentAngle - targetAngle) > threshold;
+        }
+
+
+        private void OnCollisionEnter(Collision collision)
+        {
+            if(collision.gameObject.CompareTag("Ball")){
+                BallController controller = collision.gameObject.GetComponent<BallController>();
+                if(ballHitData.ContainsKey(controller)){
+                    ballHitData.Remove(controller);
+                }else{
+                    ballHitData.Add(controller,new BallHitData());
+                }
+            }
+        }
+
+        private void OnCollisionExit(Collision collision)
+        {
+            // 离开碰撞时触发（可选）
+            if(collision.gameObject.CompareTag("Ball")){
+                BallController controller = collision.gameObject.GetComponent<BallController>();
+                if(ballHitData.ContainsKey(controller)){
+                    ballHitData.Remove(controller);
+                }
+            }
+        }
+
+        private void OnCollisionStay(Collision collision)
+        {
+            // 持续碰撞时触发（可选）
+            ProcessCollision(collision);
+        }
+
+        private void ProcessCollision(Collision collision)
+        {
+            BallController controller = collision.gameObject.GetComponent<BallController>();
+            if(ballHitData.ContainsKey(controller) && collision.contactCount > 0)
+            {
+                // 获取第一个接触点的法线方向
+                Vector3 hitNormal = collision.contacts[0].normal;
+                Vector3 worldHitDirection = transform.TransformDirection(hitNormal).normalized;
+                
+                // 更新击打数据
+                BallHitData newData = new BallHitData
+                {
+                    hitDirection = worldHitDirection,
+                    hitForce = hitForce
+                };
+                ballHitData[controller] = newData;
+
+                // 当挡板抬起时绘制轨迹
+                if (Mathf.Approximately(targetAngle, maxAngle))
+                {
+                    Vector3 hitPoint = collision.contacts[0].point;
+                    Debug.DrawLine(hitPoint, hitPoint + worldHitDirection * 2f,
+                                 Color.red, lineDuration);
+                }
+            }
         }
 
     }
