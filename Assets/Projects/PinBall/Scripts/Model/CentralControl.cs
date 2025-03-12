@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -9,7 +10,8 @@ namespace Cool.Dcm.Game.PinBall
         public Transform targetObject; // 新增目标物体引用
         public PaddleController leftPaddle;
         public PaddleController rightPaddle;
-        public BallController ball;
+        public GameObject ballPrefab;
+        private List<BallController> ballList =new List<BallController>();
         // 私有静态实例变量
         private static CentralControl _instance;
 
@@ -38,7 +40,6 @@ namespace Cool.Dcm.Game.PinBall
         private CentralControl() { }
 
         private Vector3 offset;
-        private float mouseZPos;
         private bool isDragging;
         private Vector3 initialBallPosition;
         private Vector3 newPos; 
@@ -73,13 +74,14 @@ namespace Cool.Dcm.Game.PinBall
 
         private bool isPaused = false;
 
-        void Awake()
+        void Start()
         {
             
             playerInput = GetComponent<PlayerInput>();
             playerInput.onActionTriggered +=HandleInput;
             // 初始化重置位置（动态计算目标物体顶部）
             CalculateResetPosition();
+            GenerateBall();
             
             // 初始化轨迹线
             trajectoryLine = gameObject.AddComponent<LineRenderer>();
@@ -95,13 +97,11 @@ namespace Cool.Dcm.Game.PinBall
 
         void Update()
         {
-            // HandleKeyboardInput();
-            HandleMouseDrag();
 
             // 更新轨迹线
             if (isDragging && selectedObject != null)
             {
-                UpdateTrajectory();
+                
             }
             else
             {
@@ -109,20 +109,20 @@ namespace Cool.Dcm.Game.PinBall
             }
         }
 
+
+        #region 处理用户输入
         private void HandleInput(InputAction.CallbackContext context){
             switch (context.action.name)
             {
                 case "LeftPaddle":
-                    if (context.phase == InputActionPhase.Performed)
+                    if (context.phase == InputActionPhase.Performed&&!isAtResetPosition)
                     {
-                        Debug.Log($"LeftPaddle Performed {context.ReadValueAsButton()}");
                         leftPaddle.RotatePaddle(context.ReadValueAsButton());
                     }
                     break;
                 case "RightPaddle":
-                    if (context.phase == InputActionPhase.Performed)
+                    if (context.phase == InputActionPhase.Performed&&!isAtResetPosition)
                     {
-                        Debug.Log($"RightPaddle Performed {context.ReadValueAsButton()}");
                         rightPaddle.RotatePaddle(context.ReadValueAsButton());
                     }
                     break;
@@ -139,10 +139,34 @@ namespace Cool.Dcm.Game.PinBall
                     Debug.Log($"ResetBall {context.ReadValueAsButton()}");
                     RestBallPos();
                     break;
+                case "DragPress":
+                    if (context.phase == InputActionPhase.Started)
+                    {
+                        StartDrag(context);
+                    }
+                    if (context.phase == InputActionPhase.Canceled)
+                    {
+                        EndDrag(context);
+                    }
+                    break;
+                case "DragPosition":
+                    if(context.phase == InputActionPhase.Performed)
+                    {
+                        InDrag(context);
+                    }                    
+                    break;
             }
             
         }
+        
 
+        #endregion
+
+
+
+
+
+        #region  暂停功能
         void TogglePause()
         {
             isPaused = !isPaused;
@@ -157,130 +181,60 @@ namespace Cool.Dcm.Game.PinBall
                 Debug.Log("游戏已继续"); 
             }
         }
+        #endregion
+        
+        
 
-        // 平滑释放协程
-        void RestBallPos()
-        {
-            // 添加重置功能
-            if (ball != null && targetObject != null)
-                {
-                    CameraController.Instance.SwitchToLaunchView();
-                    isAtResetPosition= true;
-                    CalculateResetPosition();
-                    Debug.Log("Reset Ball Position");
-                    // 应用底部对齐计算
-                    var ballCollider = ball.GetComponent<SphereCollider>();
-                    if (ballCollider != null)
-                    {
-                        float ballRadius = ballCollider.radius * ball.transform.lossyScale.y;
-                        Vector3 finalPosition = resetPosition + Vector3.up * ballRadius;
-                        ball.transform.position = finalPosition;
-                        
-                        // 调试日志
-                        Debug.Log($"目标物体顶部位置: {resetPosition}");
-                        Debug.Log($"小球半径: {ballRadius} (缩放系数: {ball.transform.lossyScale.y})");
-                        Debug.Log($"最终重置位置: {finalPosition}");
-                    }
-                    else
-                    {
-                        ball.transform.position = resetPosition;
-                        Debug.LogWarning("小球缺少SphereCollider组件，使用默认重置位置");
-                    }
-                    if (ball.GetComponent<Rigidbody>() != null)
-                    {
-                        var rb = ball.GetComponent<Rigidbody>();
-                        rb.velocity = Vector3.zero;
-                        rb.angularVelocity = Vector3.zero;
-                        rb.constraints = RigidbodyConstraints.FreezeAll;
-                        rb.isKinematic = true; // 设置为运动学模式以便拖动
-                    }
-                    isAtResetPosition = true; // 立即更新位置状态
-                    // 重置拖动状态
-                    isDragging = false;
-                    selectedObject = null;
-                    selectedRigidbody = null;
-                    // 添加额外验证
-                    Debug.Log($"物理状态已重置 速度:{ball.GetComponent<Rigidbody>().velocity} 角速度:{ball.GetComponent<Rigidbody>().angularVelocity}");
-                    Debug.Log($"Ball reset to position. Ready to drag: {isAtResetPosition}");
-                    Debug.Log($"实际位置差异: {Vector3.Distance(ball.transform.position, resetPosition)}");
-                }
-            
-        }
 
+
+
+
+
+
+
+        #region 用户拖拽操作相关功能
         private Transform selectedObject;
         private Rigidbody selectedRigidbody; // 缓存刚体组件
-        
-        void HandleMouseDrag()
+        private Plane xzPlane = new Plane(Vector3.up, Vector3.zero);
+
+        private Vector2 startDragPosition;
+
+        private void StartDrag(InputAction.CallbackContext context)
         {
-            if (Input.GetMouseButtonDown(0))
+            // 获取点击时的屏幕位置
+            Ray ray = Camera.main.ScreenPointToRay(startDragPosition);
+
+            if (Physics.Raycast(ray, out RaycastHit hit))
             {
-                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                RaycastHit hit;
-                
-                if (Physics.Raycast(ray, out hit))
+                // 只有当小球在重置位置且静止时才能拖动（添加位置验证）
+                if(hit.transform.GetComponent<BallController>() != null && isAtResetPosition&& !isDragging) // 添加拖动状态检查
                 {
-                    // 只有当小球在重置位置且静止时才能拖动（添加位置验证）
-                    if(hit.transform.GetComponent<BallController>() != null && isAtResetPosition&& !isDragging) // 添加拖动状态检查
+                    Debug.Log("Drag Ball");
+                    selectedObject = hit.transform;
+                    offset = selectedObject.position - GetMouseWorldPos(startDragPosition);
+                    selectedRigidbody = selectedObject.GetComponent<Rigidbody>();
+                    initialBallPosition = selectedObject.position;
+                    
+                    if (selectedRigidbody != null)
                     {
-                        Debug.Log("Drag Ball");
-                        selectedObject = hit.transform;
-                        offset = selectedObject.position - GetMouseWorldPos();
-                        selectedRigidbody = selectedObject.GetComponent<Rigidbody>();
-                        initialBallPosition = selectedObject.position;
-                        
-                        if (selectedRigidbody != null)
-                        {
-                            selectedRigidbody.isKinematic = true; // 关闭运动学以允许物理移动
-                            selectedRigidbody.constraints = RigidbodyConstraints.FreezePositionY | RigidbodyConstraints.FreezeRotation;
-                        }
-                        isDragging = true;
+                        selectedRigidbody.isKinematic = true; // 关闭运动学以允许物理移动
+                        selectedRigidbody.constraints = RigidbodyConstraints.FreezePositionY | RigidbodyConstraints.FreezeRotation;
                     }
-                    else 
-                    {
-                        selectedObject = null;
-                        return;
-                    }
+                    isDragging = true;
+                }
+                else 
+                {
+                    selectedObject = null;
+                    return;
                 }
             }
+        }
 
-            if (Input.GetMouseButtonUp(0))
-            {
-                isDragging = false;
-                
-                if (selectedRigidbody != null)
-                {
-                    selectedRigidbody.constraints = RigidbodyConstraints.None;
-                    selectedRigidbody.isKinematic = false; // 恢复物理模拟
-                    
-                    if (clampedDrag.magnitude > minDragThreshold)
-                    {
-                        // 计算发射方向（应用角度参数）
-                        Vector3 launchDirection = clampedDrag.normalized * -1;
-                        // 将水平方向力与垂直方向力结合
-                        // 根据拖动距离比例计算实际力度
-                        float forceRatio = Mathf.Clamp01(clampedDrag.magnitude / dragRadius);
-                        float currentLaunchForce = Mathf.Lerp(minLaunchForce, maxLaunchForce, forceRatio);
-                        
-                        float horizontalForce = Mathf.Cos(launchAngle * Mathf.Deg2Rad) * currentLaunchForce;
-                        float verticalForce = Mathf.Sin(launchAngle * Mathf.Deg2Rad) * currentLaunchForce;
-                        selectedRigidbody.AddForce(new Vector3(launchDirection.x * horizontalForce, verticalForce, launchDirection.z * horizontalForce), ForceMode.Impulse);
-                        isAtResetPosition = false; // 发射后立即更新状态
-                    }
-                    else
-                    {
-                        selectedObject.position = resetPosition;
-                        isAtResetPosition = true; // 更新位置状态
-                    }
-                    
-                    selectedRigidbody = null;
-                }
-                selectedObject = null;
-                CameraController.Instance.SwitchToHitView();
-            }
-
+        private void InDrag(InputAction.CallbackContext context){
             if (isDragging && selectedObject != null)
             {
-                Vector3 targetPos = GetMouseWorldPos() + offset;
+                // 获取当前鼠标位置并转换为世界坐标
+                Vector3 targetPos = GetMouseWorldPos(context.ReadValue<Vector2>()) + offset;
                 targetPos.y = selectedObject.position.y;
                 
                 // 限制拖拽范围
@@ -291,7 +245,6 @@ namespace Cool.Dcm.Game.PinBall
                 // 计算角度并限制范围
                 float currentAngle = Mathf.Atan2(dragVector.z, dragVector.x) * Mathf.Rad2Deg;
                 currentAngle = (currentAngle + 360) % 360; // 转换为0-360度
-                Debug.Log($"Current Angle: {currentAngle}");
                 // 角度限制
                 if (currentAngle < minAngle || currentAngle > maxAngle) {
                     float minDiff = Mathf.Abs(currentAngle - minAngle);
@@ -321,14 +274,50 @@ namespace Cool.Dcm.Game.PinBall
                 {
                     selectedObject.position = newPos;
                 }
+                UpdateTrajectory();
+            }else{
+                startDragPosition = context.ReadValue<Vector2>();
             }
         }
 
-        private Plane xzPlane = new Plane(Vector3.up, Vector3.zero);
-        
-        private Vector3 GetMouseWorldPos()
+        private void EndDrag(InputAction.CallbackContext context)
         {
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            isDragging = false;
+            if (selectedRigidbody != null)
+            {
+                selectedRigidbody.constraints = RigidbodyConstraints.None;
+                selectedRigidbody.isKinematic = false; // 恢复物理模拟
+                if (clampedDrag.magnitude > minDragThreshold)
+                {
+                    // 计算发射方向（应用角度参数）
+                    Vector3 launchDirection = clampedDrag.normalized * -1;
+                    // 将水平方向力与垂直方向力结合
+                    // 根据拖动距离比例计算实际力度
+                    float forceRatio = Mathf.Clamp01(clampedDrag.magnitude / dragRadius);
+                    float currentLaunchForce = Mathf.Lerp(minLaunchForce, maxLaunchForce, forceRatio);
+                    
+                    float horizontalForce = Mathf.Cos(launchAngle * Mathf.Deg2Rad) * currentLaunchForce;
+                    float verticalForce = Mathf.Sin(launchAngle * Mathf.Deg2Rad) * currentLaunchForce;
+                    selectedRigidbody.AddForce(new Vector3(launchDirection.x * horizontalForce, verticalForce, launchDirection.z * horizontalForce), ForceMode.Impulse);
+                    isAtResetPosition = false; // 发射后立即更新状态
+                    CameraController.Instance.SwitchToHitView();
+                }
+                else
+                {
+                    setBallPos(selectedObject.GetComponent<BallController>());
+                    isAtResetPosition = true; // 更新位置状态
+                }
+                
+                selectedRigidbody = null;
+                
+            }
+            selectedObject = null;
+                
+        }
+
+        private Vector3 GetMouseWorldPos(Vector2 screenPosition)
+        {
+            Ray ray = Camera.main.ScreenPointToRay(screenPosition);
             float distance;
             if (xzPlane.Raycast(ray, out distance))
             {
@@ -399,42 +388,6 @@ namespace Cool.Dcm.Game.PinBall
             }
         }
 
-        // 新增重置位置计算方法
-        private void CalculateResetPosition()
-        {
-            if (targetObject != null)
-            {
-                var targetCollider = targetObject.GetComponent<BoxCollider>();
-                if (targetCollider != null)
-                {
-                    // 计算目标物体顶部中心点位置
-                    resetPosition = targetObject.position + 
-                        Vector3.up * (targetCollider.size.y * 0.5f * targetObject.lossyScale.y);
-                }
-                else
-                {
-                    resetPosition = targetObject.position;
-                }
-            }
-            else
-            {
-                resetPosition = ball.transform.position;
-            }
-        }
-
-        // 显示碰撞信息到UI
-        public void ShowCollisionInfo(string info)
-        {
-            // 在实际项目中需要连接具体的UI组件，这里添加调试日志
-            Debug.Log($"[碰撞信息] {info}");
-            
-            // 示例：如果使用UI Text组件，可以取消注释以下代码
-            // if (infoText != null) 
-            // {
-            //     infoText.text = info;
-            // }
-        }
-
         // 创建轨迹线颜色渐变
         public Gradient CreateTrajectoryGradient()
         {
@@ -451,6 +404,104 @@ namespace Cool.Dcm.Game.PinBall
             );
             return gradient;
         }
+        
+        #endregion
+        
+
+
+
+
+
+        #region 小球生成及位置重置
+
+        public void GenerateBall()
+        {
+            if (ballPrefab != null)
+            {
+                GameObject ball = Instantiate(ballPrefab, targetObject.position, Quaternion.identity);
+                BallController ballController = ball.GetComponent<BallController>();
+                ballList.Add(ballController);
+                setBallPos(ballController);
+                isAtResetPosition= true;
+            }
+        }
+
+        // 平滑释放协程
+        void RestBallPos()
+        {
+            if(isAtResetPosition){
+                Debug.Log("小球已处于重置位置");
+                return;
+            }
+            Debug.Log(targetObject);
+            // 添加重置功能
+            if (ballList.Count>0 && targetObject != null)
+            {
+                CameraController.Instance.SwitchToLaunchView();
+                Debug.Log("Reset Ball Position");
+                var mainBall  = GetMainBall();
+                setBallPos(mainBall);
+                isAtResetPosition= true;
+                // 添加额外验证
+                Debug.Log($"物理状态已重置 速度:{mainBall.GetComponent<Rigidbody>().velocity} 角速度:{mainBall.GetComponent<Rigidbody>().angularVelocity}");
+                Debug.Log($"Ball reset to position. Ready to drag: {isAtResetPosition}");
+                Debug.Log($"实际位置差异: {Vector3.Distance(mainBall.transform.position, resetPosition)}");
+            }
+        }
+
+        bool setBallPos(BallController ball){
+            if(ball == null)
+            {
+                Debug.LogWarning("小球为空，无法设置位置");
+                return false;
+            }
+            // 应用底部对齐计算
+            var ballCollider =  ball.GetComponent<SphereCollider>();
+            Vector3 finalPosition;
+            if (ballCollider != null)
+            {
+                float ballRadius = ballCollider.radius * ball.transform.lossyScale.y;
+                finalPosition = resetPosition + Vector3.up * ballRadius;
+                
+                // 调试日志
+                // Debug.Log($"目标物体顶部位置: {resetPosition}");
+                // Debug.Log($"小球半径: {ballRadius} (缩放系数: {ball.transform.lossyScale.y})");
+                // Debug.Log($"最终重置位置: {finalPosition}");
+            }
+            else
+            {
+                finalPosition = resetPosition;
+                Debug.LogWarning("小球缺少SphereCollider组件，使用默认重置位置");
+            }
+            
+            ball.ResetBall(finalPosition);
+            return true;
+        }
+
+        BallController GetMainBall(){
+            return ballList[0];
+        }
+
+        // 新增重置位置计算方法
+        private void CalculateResetPosition()
+        {
+            if (targetObject != null)
+            {
+                var targetCollider = targetObject.GetComponent<BoxCollider>();
+                if (targetCollider != null)
+                {
+                    // 计算目标物体顶部中心点位置
+                    resetPosition = targetObject.position + Vector3.up * (targetCollider.size.y * 0.5f * targetObject.lossyScale.y);
+                }
+                else
+                {
+                    resetPosition = targetObject.position;
+                }
+            }
+        }
+
+        #endregion
+
     }
 
 }

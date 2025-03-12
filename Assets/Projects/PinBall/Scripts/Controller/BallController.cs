@@ -7,9 +7,7 @@ namespace Cool.Dcm.Game.PinBall
         private Rigidbody rb;
         private ConstantForce force;
 
-        private Vector3 bounceDirection;
-
-        private void Start()
+        private void Awake()
         {
             force = GetComponent<ConstantForce>();
             if (force == null)
@@ -27,8 +25,8 @@ namespace Cool.Dcm.Game.PinBall
             }
             
             rb.interpolation = RigidbodyInterpolation.Interpolate;
-            rb.AddForce(Vector3.forward*50,ForceMode.Impulse);
             rb.constraints = RigidbodyConstraints.FreezePositionY;
+            rb.isKinematic = true;
         }
 
         void FixedUpdate()
@@ -37,19 +35,34 @@ namespace Cool.Dcm.Game.PinBall
         }
         public void Launch(Vector3 direction,float force)
         {
-            Debug.Log(direction);
             rb.AddForce(direction.normalized * force, ForceMode.Impulse);
         }
 
-        public Vector3 GetVelocity()
+        public void ResetBall(Vector3 pos = new Vector3(),Quaternion rot = new Quaternion())
         {
-            return rb.velocity;
+            if(force!=null)
+            {
+                force.enabled = false;
+            }
+            if(rb!=null)
+            {
+                rb.velocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+                rb.constraints = RigidbodyConstraints.FreezeAll;
+                rb.isKinematic = true; 
+            }
+            transform.position = pos;
+            transform.rotation = rot;
         }
+        // public Vector3 GetVelocity()
+        // {
+        //     return rb.velocity;
+        // }
 
-        public void AddForce(Vector3 force, ForceMode mode)
-        {
-            rb.AddForce(force, mode);
-        }
+        // public void AddForce(Vector3 force, ForceMode mode)
+        // {
+        //     rb.AddForce(force, mode);
+        // }
 
 
         void OnCollisionStay(Collision collision) {
