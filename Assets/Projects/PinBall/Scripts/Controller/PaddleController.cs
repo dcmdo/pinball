@@ -52,6 +52,7 @@ namespace Cool.Dcm.Game.PinBall
             rb.isKinematic = true;
 
             initLine();
+            
         }
 
         private void initLine(){
@@ -110,16 +111,57 @@ namespace Cool.Dcm.Game.PinBall
                 currentRotateTime += Time.deltaTime;
                 paddle.transform.rotation = Quaternion.Euler(0, smoothAngle, 0);
             }
+            
         }
+        /// <summary>
+        /// Checks if two game objects are in contact on a specific face.
+        /// </summary>
+        /// <param name="objectA">The first game object.</param>
+        /// <param name="objectB">The second game object.</param>
+        /// <param name="faceNormal">The normal vector of the face to check contact against.</param>
+        /// <param name="tolerance">The tolerance for the dot product comparison.</param>
+        /// <returns>True if the objects are in contact on the specified face, otherwise false.</returns>
+        private bool IsContactOnFace(GameObject objectA, GameObject objectB, Vector3 faceNormal, float tolerance = 0.1f)
+        {
+            // Get all colliders
+            Collider[] collidersA = objectA.GetComponents<Collider>();
+            Collider[] collidersB = objectB.GetComponents<Collider>();
 
+            foreach (Collider colliderA in collidersA)
+            {
+                foreach (Collider colliderB in collidersB)
+                {
+                    // Check if colliders are actually touching
+                    if (Physics.ComputePenetration(
+                        colliderA, colliderA.transform.position, colliderA.transform.rotation,
+                        colliderB, colliderB.transform.position, colliderB.transform.rotation,
+                        out Vector3 direction, out float distance))
+                    {
+                        // Compare the contact normal with the desired face normal
+                        float dotProduct = Vector3.Dot(direction.normalized, faceNormal.normalized);
+                        if (Mathf.Abs(dotProduct - 1) < tolerance)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
         public void RotatePaddle(bool isPressed)
         {
             // 根据按钮状态设置目标角度
             targetAngle = isPressed ? maxAngle : minAngle;
             currentRotateTime = 0;
+            Debug.Log(ballHitData.Count);
+            List<BallController> launchBalls = new List<BallController>();
             if(isPressed&&ballHitData.Count>0){
                 foreach(var ball in ballHitData){
                     ball.Key.Launch(ball.Value.hitDirection,ball.Value.hitForce);
+                    launchBalls.Add(ball.Key);
+                }
+                foreach(var ball in launchBalls){
+                    ballHitData.Remove(ball);
                 }
             }
         }
@@ -129,23 +171,43 @@ namespace Cool.Dcm.Game.PinBall
             return Mathf.Abs(currentAngle - targetAngle) > threshold;
         }
 
-
         private void OnCollisionEnter(Collision collision)
         {
-            if(collision.gameObject.CompareTag("Ball")){
-                BallController controller = collision.gameObject.GetComponent<BallController>();
-                if(ballHitData.ContainsKey(controller)){
-                    ballHitData.Remove(controller);
-                }else{
-                    ballHitData.Add(controller,new BallHitData());
-                }
+            if (!collision.gameObject.CompareTag("Ball")) return;
+            
+            var controller = collision.gameObject.GetComponent<BallController>();
+            if (controller == null) return;
+
+            // Get collision details
+            ContactPoint contact = collision.GetContact(0);
+            float collisionForce = collision.impulse.magnitude / Time.fixedDeltaTime;
+            
+            // Only add to hit data if force is significant
+            if (collisionForce > 0.1f && !ballHitData.ContainsKey(controller))
+            {
+                ballHitData.Add(controller, new BallHitData
+                {
+                    hitDirection = contact.normal,
+                    hitForce = hitForce
+                });
             }
         }
+        // private void OnCollisionEnter(Collision collision)
+        // {
+        //     if(collision.gameObject.CompareTag("Ball")){
+        //         BallController controller = collision.gameObject.GetComponent<BallController>();
+        //         if(!ballHitData.ContainsKey(controller)){
+        //             ballHitData.Add(controller,new BallHitData());
+        //         }
+        //     }
+        // }
 
         private void OnCollisionExit(Collision collision)
         {
-            // 使用协程控制显示时间
-            StartCoroutine(DisableLineAfterDelay(lineDuration));
+            if (trajectoryLine != null)
+            {
+                trajectoryLine.enabled = false;
+            }
             // 离开碰撞时触发（可选）
             if(collision.gameObject.CompareTag("Ball")){
                 BallController controller = collision.gameObject.GetComponent<BallController>();
@@ -194,22 +256,14 @@ namespace Cool.Dcm.Game.PinBall
                 hitDirection = localHitDirection,
                 hitForce = hitForce
             };
-
-            Vector3 hitPoint = deepestContact.point;
-            trajectoryLine.enabled = true;
-            trajectoryLine.positionCount = 2;
-            trajectoryLine.SetPosition(0, hitPoint);
-            trajectoryLine.SetPosition(1, hitPoint + localHitDirection * 20f);
-            
-        }
-
-        private System.Collections.IEnumerator DisableLineAfterDelay(float delay)
-        {
-            yield return new WaitForSeconds(delay);
-            if (trajectoryLine != null)
-            {
-                trajectoryLine.enabled = false;
+            if(Vector3.Dot(Vector3.forward,transform.TransformVector(localHitDirection))>0){
+                Vector3 hitPoint = deepestContact.point;
+                trajectoryLine.enabled = true;
+                trajectoryLine.positionCount = 2;
+                trajectoryLine.SetPosition(0, hitPoint);
+                trajectoryLine.SetPosition(1, hitPoint + -localHitDirection * 20f);
             }
+            
         }
 
     }
