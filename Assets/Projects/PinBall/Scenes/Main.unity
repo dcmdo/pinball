@@ -741,6 +741,7 @@ MonoBehaviour:
   maxAngle: 60
   minAngle: 120
   rotateTime: 1
+  contactThreshold: 0.1
   paddle: {fileID: 0}
   trajectoryLine: {fileID: 0}
 --- !u!4 &891039854487531570 stripped
@@ -910,6 +911,7 @@ MonoBehaviour:
   maxAngle: -60
   minAngle: -120
   rotateTime: 1
+  contactThreshold: 0.1
   paddle: {fileID: 0}
   trajectoryLine: {fileID: 0}
 --- !u!23 &1957457626374457463
@@ -1118,7 +1120,7 @@ PrefabInstance:
     - target: {fileID: 2162354467874764985, guid: 9e3c9f186e0f4894ab4de91346ed5804, type: 3}
       propertyPath: m_Material
       value: 
-      objectReference: {fileID: 13400000, guid: 8eda7a5eb256cd9428d6c19315be2574, type: 2}
+      objectReference: {fileID: 0}
     - target: {fileID: 5063447346595843081, guid: 9e3c9f186e0f4894ab4de91346ed5804, type: 3}
       propertyPath: m_Name
       value: car

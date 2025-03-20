@@ -17,12 +17,13 @@ namespace Cool.Dcm.Game.PinBall
         [SerializeField] private float maxAngle = 60f; // 挡板抬起角度
         [SerializeField] private float minAngle = 0f;  // 挡板默认角度
         [SerializeField] private float rotateTime = 1f; // 增加旋转速度
+        [Header("Detection Settings")]
+        [SerializeField] private float contactThreshold = 0.1f; // 接触检测阈值
         
         [SerializeField] private GameObject paddle;
         [SerializeField] private LineRenderer trajectoryLine;
         private Dictionary<BallController,BallHitData> ballHitData = new Dictionary<BallController, BallHitData>();
-
-        private Rigidbody rb;
+        private List<BallController> nearbyBalls = new List<BallController>();
 
         private float currentRotateTime = 0;
         private float targetAngle;
@@ -40,16 +41,7 @@ namespace Cool.Dcm.Game.PinBall
             {
                 paddle = gameObject;
             }
-            
-            rb = GetComponent<Rigidbody>();
-            if (rb == null)
-            {
-                rb = gameObject.AddComponent<Rigidbody>();
-            }
-            
-            rb.interpolation = RigidbodyInterpolation.Interpolate;
-            rb.constraints = RigidbodyConstraints.FreezeAll;
-            rb.isKinematic = true;
+            ;
 
             initLine();
             
@@ -103,7 +95,6 @@ namespace Cool.Dcm.Game.PinBall
         {
             if (IsAngleGreaterThanThreshold(paddle.transform.eulerAngles.y, targetAngle,0.01f))
             {
-                // 获取当前角度并处理360度环绕
                 float currentAngle = paddle.transform.eulerAngles.y;
                 currentAngle = Mathf.Repeat(currentAngle + 180f, 360f) - 180f;
             
@@ -111,56 +102,111 @@ namespace Cool.Dcm.Game.PinBall
                 currentRotateTime += Time.deltaTime;
                 paddle.transform.rotation = Quaternion.Euler(0, smoothAngle, 0);
             }
-            
-        }
-        /// <summary>
-        /// Checks if two game objects are in contact on a specific face.
-        /// </summary>
-        /// <param name="objectA">The first game object.</param>
-        /// <param name="objectB">The second game object.</param>
-        /// <param name="faceNormal">The normal vector of the face to check contact against.</param>
-        /// <param name="tolerance">The tolerance for the dot product comparison.</param>
-        /// <returns>True if the objects are in contact on the specified face, otherwise false.</returns>
-        private bool IsContactOnFace(GameObject objectA, GameObject objectB, Vector3 faceNormal, float tolerance = 0.1f)
-        {
-            // Get all colliders
-            Collider[] collidersA = objectA.GetComponents<Collider>();
-            Collider[] collidersB = objectB.GetComponents<Collider>();
 
-            foreach (Collider colliderA in collidersA)
+            // 检测附近的小球
+            CheckNearbyBalls();
+        }
+
+        private void CheckNearbyBalls()
+        {
+            // 获取所有带有BallController组件的物体
+            BallController[] allBalls = FindObjectsOfType<BallController>();
+            nearbyBalls.Clear();
+
+            foreach (var ball in allBalls)
             {
-                foreach (Collider colliderB in collidersB)
+                if (IsBallInContact(ball))
                 {
-                    // Check if colliders are actually touching
-                    if (Physics.ComputePenetration(
-                        colliderA, colliderA.transform.position, colliderA.transform.rotation,
-                        colliderB, colliderB.transform.position, colliderB.transform.rotation,
-                        out Vector3 direction, out float distance))
+                    nearbyBalls.Add(ball);
+                    if (!ballHitData.ContainsKey(ball))
                     {
-                        // Compare the contact normal with the desired face normal
-                        float dotProduct = Vector3.Dot(direction.normalized, faceNormal.normalized);
-                        if (Mathf.Abs(dotProduct - 1) < tolerance)
+                        Vector3 hitDirection = CalculateHitDirection(ball);
+                        ballHitData.Add(ball, new BallHitData
                         {
-                            return true;
-                        }
+                            hitDirection = hitDirection,
+                            hitForce = hitForce
+                        });
                     }
                 }
             }
-            return false;
+
+            // 移除不再接触的小球
+            List<BallController> ballsToRemove = new List<BallController>();
+            foreach (var ball in ballHitData.Keys)
+            {
+                if (!nearbyBalls.Contains(ball))
+                {
+                    ballsToRemove.Add(ball);
+                }
+            }
+            foreach (var ball in ballsToRemove)
+            {
+                ballHitData.Remove(ball);
+            }
         }
+
+        private bool IsBallInContact(BallController ball)
+        {
+            Vector3 ballPosition = ball.transform.position;
+            Vector3 paddlePosition = paddle.transform.position;
+            Vector3 paddleUp = paddle.transform.up;
+            Vector3 paddleForward = paddle.transform.forward;
+
+            // 获取小球的SphereCollider组件
+            SphereCollider ballCollider = ball.GetComponent<SphereCollider>();
+            if (ballCollider == null) return false;
+
+            // 计算实际半径（考虑缩放）
+            float ballRadius = ballCollider.radius * Mathf.Max(
+                ball.transform.lossyScale.x,
+                ball.transform.lossyScale.y,
+                ball.transform.lossyScale.z
+            );
+
+            // 计算小球到挡板平面的距离
+            float distanceToPlane = Vector3.Dot(ballPosition - paddlePosition, paddleUp);
+            
+            // 检查小球是否在挡板的前面
+            float forwardDistance = Vector3.Dot(ballPosition - paddlePosition, paddleForward);
+            
+            // 检查小球是否在挡板的范围内（可以根据需要调整范围）
+            float paddleWidth = 2f; // 挡板宽度
+            float paddleLength = 1f; // 挡板长度
+            
+            bool isInWidthRange = Mathf.Abs(Vector3.Dot(ballPosition - paddlePosition, paddle.transform.right)) < paddleWidth / 2;
+            bool isInLengthRange = forwardDistance > 0 && forwardDistance < paddleLength;
+            
+            // 如果小球在挡板范围内且距离小于阈值，则认为接触
+            return isInWidthRange && isInLengthRange && Mathf.Abs(distanceToPlane) < (contactThreshold + ballRadius);
+        }
+
+        private Vector3 CalculateHitDirection(BallController ball)
+        {
+            Vector3 paddleUp = paddle.transform.up;
+            Vector3 paddleForward = paddle.transform.forward;
+            
+            // 计算击打方向（基于挡板当前角度）
+            Vector3 hitDirection = Vector3.Reflect(paddleForward, paddleUp);
+            hitDirection = Quaternion.Euler(0, paddle.transform.eulerAngles.y, 0) * hitDirection;
+            
+            return hitDirection.normalized;
+        }
+
         public void RotatePaddle(bool isPressed)
         {
-            // 根据按钮状态设置目标角度
             targetAngle = isPressed ? maxAngle : minAngle;
             currentRotateTime = 0;
-            Debug.Log(ballHitData.Count);
-            List<BallController> launchBalls = new List<BallController>();
-            if(isPressed&&ballHitData.Count>0){
-                foreach(var ball in ballHitData){
-                    ball.Key.Launch(ball.Value.hitDirection,ball.Value.hitForce);
+
+            if (isPressed && ballHitData.Count > 0)
+            {
+                List<BallController> launchBalls = new List<BallController>();
+                foreach (var ball in ballHitData)
+                {
+                    ball.Key.Launch(ball.Value.hitDirection, ball.Value.hitForce);
                     launchBalls.Add(ball.Key);
                 }
-                foreach(var ball in launchBalls){
+                foreach (var ball in launchBalls)
+                {
                     ballHitData.Remove(ball);
                 }
             }
@@ -178,16 +224,27 @@ namespace Cool.Dcm.Game.PinBall
             var controller = collision.gameObject.GetComponent<BallController>();
             if (controller == null) return;
 
-            // Get collision details
-            ContactPoint contact = collision.GetContact(0);
-            float collisionForce = collision.impulse.magnitude / Time.fixedDeltaTime;
+            // 计算平均接触点法线
+            Vector3 averageNormal = Vector3.zero;
+            for (int i = 0; i < collision.contactCount; i++)
+            {
+                averageNormal += collision.GetContact(i).normal;
+            }
+            averageNormal = (averageNormal / collision.contactCount).normalized;
+
+            // 计算碰撞速度
+            float collisionSpeed = collision.impulse.magnitude / Time.fixedDeltaTime;
             
-            // Only add to hit data if force is significant
-            if (collisionForce > 0.1f && !ballHitData.ContainsKey(controller))
+            // 检查碰撞是否来自挡板表面（法线方向应该大致垂直于挡板）
+            float dotProduct = Vector3.Dot(averageNormal, transform.up);
+            bool isFromPaddleSurface = Mathf.Abs(dotProduct) < 0.5f; // 允许一定的角度偏差
+            
+            // 只有当碰撞来自挡板表面且力度足够大时才记录
+            if (isFromPaddleSurface && collisionSpeed > 0.1f && !ballHitData.ContainsKey(controller))
             {
                 ballHitData.Add(controller, new BallHitData
                 {
-                    hitDirection = contact.normal,
+                    hitDirection = averageNormal,
                     hitForce = hitForce
                 });
             }
