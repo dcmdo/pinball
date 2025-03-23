@@ -6,12 +6,12 @@ namespace Cool.Dcm.Game.PinBall
     {
         [Header("Physics Settings")]
         [SerializeField] private float gravityForce = 30f;
-        [SerializeField] private float maxVelocity = 20f;
-        [SerializeField] private float bounceForce = 5f;
+        [SerializeField] private float ballLimitHight = 4;
 
         private Rigidbody rb;
         private ConstantForce force;
         private bool isLaunched = false;
+        private Vector3 bounceDirection;
 
         private void Awake()
         {
@@ -30,20 +30,38 @@ namespace Cool.Dcm.Game.PinBall
             }
             
             rb.interpolation = RigidbodyInterpolation.Interpolate;
+            rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
             rb.constraints = RigidbodyConstraints.FreezePositionY;
+            rb.useGravity = true;
             rb.isKinematic = true;
         }
-
         void FixedUpdate()
         {
-            if (isLaunched)
+            if(isLaunched&&transform.position.y<ballLimitHight)
             {
-                // 限制最大速度
-                if (rb.velocity.magnitude > maxVelocity)
-                {
-                    rb.velocity = rb.velocity.normalized * maxVelocity;
+                
+                if (!force.enabled) {
+                    force.enabled = true;
+                    rb.constraints = RigidbodyConstraints.FreezePositionY;
                 }
             }
+        }
+        // void FixedUpdate()
+        // {
+        //     if (isLaunched)
+        //     {
+        //         // 限制最大速度
+        //         if (rb.velocity.magnitude > maxVelocity)
+        //         {
+        //             rb.velocity = rb.velocity.normalized * maxVelocity;
+        //         }
+        //     }
+        // }
+
+        public void Hit(Vector3 direction, float force)
+        {
+            rb.isKinematic = false;
+            rb.AddForce(direction.normalized * force, ForceMode.Impulse);
         }
 
         public void Launch(Vector3 direction, float force)
@@ -72,22 +90,68 @@ namespace Cool.Dcm.Game.PinBall
             transform.rotation = rot;
         }
 
-        void OnCollisionStay(Collision collision) 
+        public void setDragRigidbody(bool isDrag)
         {
-            if (collision.gameObject.CompareTag("Ground") && !force.enabled) 
+            rb.isKinematic = isDrag; // 关闭运动学以允许物理移动
+            rb.constraints = isDrag?RigidbodyConstraints.FreezePositionY | RigidbodyConstraints.FreezeRotation:RigidbodyConstraints.None;
+        }
+
+        public void MovePosition(Vector3 pos)
+        {
+            rb.MovePosition(pos);
+        }
+
+
+        void OnCollisionEnter(Collision other)
+        {
+            PaddleController paddleController = other.gameObject.GetComponentInParent<PaddleController>();
+            if(paddleController != null)
             {
-                force.enabled = true;
+               // 获取碰撞点的法线
+                ContactPoint contact = other.contacts[0];
+                Vector3 normal = contact.normal;
+
+                // 获取入射方向并计算反射方向
+                bounceDirection = normal;
+                paddleController.BallEnter(this, bounceDirection);
             }
         }
 
-        void OnCollisionEnter(Collision collision)
+        void OnCollisionExit(Collision other)
         {
-            if (collision.gameObject.CompareTag("Ground"))
-            {
-                // 添加反弹效果
-                Vector3 bounceDirection = Vector3.Reflect(rb.velocity.normalized, collision.contacts[0].normal);
-                rb.AddForce(bounceDirection * bounceForce, ForceMode.Impulse);
+            if (other.gameObject.CompareTag("Ground")) {
+                force.enabled = false;
             }
+            PaddleController paddleController = other.gameObject.GetComponentInParent<PaddleController>();
+            if(paddleController != null)
+            {
+                paddleController.BallExit(this);
+            }
+            
         }
+
+        // void OnDrawGizmos()
+        // {
+        //     // 设置 Gizmo 的颜色
+        //     Gizmos.color = Color.red;
+
+        //     // 绘制从弹球位置到反弹方向的线
+        //     Gizmos.DrawLine(transform.position, transform.position + bounceDirection * 2f);
+
+        //     // 绘制反弹方向的箭头
+        //     DrawArrowForGizmo(transform.position, bounceDirection.normalized * 2f, Color.red);
+        // }
+
+        // // 绘制箭头的辅助方法
+        // void DrawArrowForGizmo(Vector3 pos, Vector3 direction, Color color)
+        // {
+        //     Gizmos.color = color;
+        //     Gizmos.DrawRay(pos, direction*10);
+
+        //     Vector3 right = Quaternion.LookRotation(direction) * Quaternion.Euler(0, 180 + 20, 0) * new Vector3(0, 0, 1);
+        //     Vector3 left = Quaternion.LookRotation(direction) * Quaternion.Euler(0, 180 - 20, 0) * new Vector3(0, 0, 1);
+        //     Gizmos.DrawRay(pos + direction*10, right * 1.2f);
+        //     Gizmos.DrawRay(pos + direction*10, left * 1.2f);
+        // }
     }
 }

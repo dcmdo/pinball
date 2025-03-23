@@ -74,6 +74,8 @@ namespace Cool.Dcm.Game.PinBall
 
         private bool isPaused = false;
 
+        private BallController currentDragBall;//在发射位置 拖动的小球
+
         void Start()
         {
             
@@ -93,20 +95,6 @@ namespace Cool.Dcm.Game.PinBall
             
             // 绘制可拖拽范围
             DrawDragArea();
-        }
-
-        void Update()
-        {
-
-            // 更新轨迹线
-            if (isDragging && selectedObject != null)
-            {
-                
-            }
-            else
-            {
-                trajectoryLine.positionCount = 0;
-            }
         }
 
 
@@ -193,8 +181,6 @@ namespace Cool.Dcm.Game.PinBall
 
 
         #region 用户拖拽操作相关功能
-        private Transform selectedObject;
-        private Rigidbody selectedRigidbody; // 缓存刚体组件
         private Plane xzPlane = new Plane(Vector3.up, Vector3.zero);
 
         private Vector2 startDragPosition;
@@ -206,36 +192,30 @@ namespace Cool.Dcm.Game.PinBall
 
             if (Physics.Raycast(ray, out RaycastHit hit))
             {
+                currentDragBall = hit.transform.GetComponent<BallController>();
                 // 只有当小球在重置位置且静止时才能拖动（添加位置验证）
-                if(hit.transform.GetComponent<BallController>() != null && isAtResetPosition&& !isDragging) // 添加拖动状态检查
+                if(currentDragBall != null && isAtResetPosition&& !isDragging) // 添加拖动状态检查
                 {
                     Debug.Log("Drag Ball");
-                    selectedObject = hit.transform;
-                    offset = selectedObject.position - GetMouseWorldPos(startDragPosition);
-                    selectedRigidbody = selectedObject.GetComponent<Rigidbody>();
-                    initialBallPosition = selectedObject.position;
-                    
-                    if (selectedRigidbody != null)
-                    {
-                        selectedRigidbody.isKinematic = true; // 关闭运动学以允许物理移动
-                        selectedRigidbody.constraints = RigidbodyConstraints.FreezePositionY | RigidbodyConstraints.FreezeRotation;
-                    }
+                    offset = currentDragBall.transform.position - GetMouseWorldPos(startDragPosition);
+                    initialBallPosition = currentDragBall.transform.position;
+                    currentDragBall.setDragRigidbody(true);
                     isDragging = true;
                 }
                 else 
                 {
-                    selectedObject = null;
+                    
                     return;
                 }
             }
         }
 
         private void InDrag(InputAction.CallbackContext context){
-            if (isDragging && selectedObject != null)
+            if (isDragging && currentDragBall != null)
             {
                 // 获取当前鼠标位置并转换为世界坐标
                 Vector3 targetPos = GetMouseWorldPos(context.ReadValue<Vector2>()) + offset;
-                targetPos.y = selectedObject.position.y;
+                targetPos.y = currentDragBall.transform.position.y;
                 
                 // 限制拖拽范围
                 // 限制在XZ平面半圆形范围
@@ -264,29 +244,22 @@ namespace Cool.Dcm.Game.PinBall
                 clampedDrag = limitedDir * dragDistance;
                 
                 newPos = initialBallPosition + clampedDrag;
-                newPos.y = selectedObject.position.y; // 保持原有Y轴位置
+                newPos.y = currentDragBall.transform.position.y; // 保持原有Y轴位置
                 
-                if (selectedRigidbody != null)
-                {
-                    selectedRigidbody.MovePosition(newPos);
-                }
-                else
-                {
-                    selectedObject.position = newPos;
-                }
+                currentDragBall.MovePosition(newPos);
                 UpdateTrajectory();
             }else{
                 startDragPosition = context.ReadValue<Vector2>();
             }
+           
         }
 
         private void EndDrag(InputAction.CallbackContext context)
         {
             isDragging = false;
-            if (selectedRigidbody != null)
+            if (currentDragBall != null)
             {
-                selectedRigidbody.constraints = RigidbodyConstraints.None;
-                selectedRigidbody.isKinematic = false; // 恢复物理模拟
+                currentDragBall.setDragRigidbody(false);
                 if (clampedDrag.magnitude > minDragThreshold)
                 {
                     // 计算发射方向（应用角度参数）
@@ -298,20 +271,21 @@ namespace Cool.Dcm.Game.PinBall
                     
                     float horizontalForce = Mathf.Cos(launchAngle * Mathf.Deg2Rad) * currentLaunchForce;
                     float verticalForce = Mathf.Sin(launchAngle * Mathf.Deg2Rad) * currentLaunchForce;
-                    selectedRigidbody.AddForce(new Vector3(launchDirection.x * horizontalForce, verticalForce, launchDirection.z * horizontalForce), ForceMode.Impulse);
+                    currentDragBall.Launch(new Vector3(launchDirection.x * horizontalForce, verticalForce, launchDirection.z * horizontalForce),currentLaunchForce);
                     isAtResetPosition = false; // 发射后立即更新状态
                     CameraController.Instance.SwitchToHitView();
+                    trajectoryLine.positionCount = 0;
                 }
                 else
                 {
-                    setBallPos(selectedObject.GetComponent<BallController>());
+                    setBallPos(currentDragBall);
                     isAtResetPosition = true; // 更新位置状态
                 }
                 
-                selectedRigidbody = null;
+                currentDragBall = null;
                 
             }
-            selectedObject = null;
+            currentDragBall = null;
                 
         }
 
@@ -374,8 +348,8 @@ namespace Cool.Dcm.Game.PinBall
             trajectoryLine.positionCount = 50;
             trajectoryLine.colorGradient = CreateTrajectoryGradient();
             
-            Vector3 currentPos = selectedObject.position;
-            Vector3 currentVelocity = velocity / selectedRigidbody.mass;
+            Vector3 currentPos = currentDragBall.transform.position;
+            Vector3 currentVelocity = velocity;
             float simulationStep = 0.02f; // 物理模拟时间步长
             int simulationSteps = 100; // 轨迹预测迭代次数
             

@@ -737,13 +737,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   hitForce: 150
-  lineDuration: 5
   maxAngle: 60
   minAngle: 120
   rotateTime: 1
-  contactThreshold: 0.1
+  contactThreshold: 0.01
   paddle: {fileID: 0}
-  trajectoryLine: {fileID: 0}
 --- !u!4 &891039854487531570 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7088467538084703555, guid: 9e3c9f186e0f4894ab4de91346ed5804, type: 3}
@@ -907,13 +905,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   hitForce: 150
-  lineDuration: 0.5
   maxAngle: -60
   minAngle: -120
   rotateTime: 1
-  contactThreshold: 0.1
+  contactThreshold: 0.01
   paddle: {fileID: 0}
-  trajectoryLine: {fileID: 0}
 --- !u!23 &1957457626374457463
 MeshRenderer:
   m_ObjectHideFlags: 0
