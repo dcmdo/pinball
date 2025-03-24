@@ -117,6 +117,15 @@ namespace Cool.Dcm.Game.PinBall
             }
         }
 
+        void OnCollisionStay(Collision other)
+        {
+            PaddleController paddleController = other.gameObject.GetComponentInParent<PaddleController>();
+            if(paddleController != null)
+            {
+                paddleController.BallUpdate(this, bounceDirection);
+                Debug.Log($"BallEnter=={bounceDirection}");
+            }
+        }
         void OnCollisionExit(Collision other)
         {
             if (other.gameObject.CompareTag("Ground")) {
