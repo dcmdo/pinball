@@ -130,6 +130,17 @@ namespace Cool.Dcm.Game.PinBall
             if (trajectories.ContainsKey(ball))
             {
                 trajectories[ball].direction = direction;
+                float segmentLength = totalLength / (pointCount - 1);
+            
+                Vector3[] points = new Vector3[pointCount];
+                Vector3 startPos = ball.transform.position;
+                for (int i = 0; i < pointCount; i++)
+                {
+                    points[i] = startPos + direction * (i * segmentLength);
+                }
+
+                trajectories[ball].lineRenderer.positionCount = pointCount;
+                trajectories[ball].lineRenderer.SetPositions(points);
             }
         }
 
@@ -142,6 +153,9 @@ namespace Cool.Dcm.Game.PinBall
             }
         }
 
+        private int pointCount = 20;
+        private float totalLength = 50f;
+        private float segmentLength = 0f;
         private void ShowTrajectoryLine(BallController ball, Vector3 direction)
         {
             // 如果已存在该小球的轨迹线，先移除
@@ -168,8 +182,6 @@ namespace Cool.Dcm.Game.PinBall
             lineRenderer.useWorldSpace = true;
 
             // 生成虚线点
-            int pointCount = 20;
-            float totalLength = 50f;
             float segmentLength = totalLength / (pointCount - 1);
             
             Vector3[] points = new Vector3[pointCount];

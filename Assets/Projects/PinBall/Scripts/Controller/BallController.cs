@@ -123,7 +123,6 @@ namespace Cool.Dcm.Game.PinBall
             if(paddleController != null)
             {
                 paddleController.BallUpdate(this, bounceDirection);
-                Debug.Log($"BallEnter=={bounceDirection}");
             }
         }
         void OnCollisionExit(Collision other)

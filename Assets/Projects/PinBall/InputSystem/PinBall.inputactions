@@ -51,8 +51,17 @@
                     "initialStateCheck": true
                 },
                 {
-                    "name": "DragPress",
+                    "name": "DragPosition",
                     "type": "Value",
+                    "id": "53a1c6ba-878d-4ba3-86f1-5fe0ed222cce",
+                    "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
+                    "name": "DragPress",
+                    "type": "Button",
                     "id": "605cbfba-8954-4add-be92-ccab4a14bf94",
                     "expectedControlType": "Button",
                     "processors": "",
@@ -60,10 +69,19 @@
                     "initialStateCheck": true
                 },
                 {
-                    "name": "DragPosition",
+                    "name": "TouchDragPress",
                     "type": "Value",
-                    "id": "53a1c6ba-878d-4ba3-86f1-5fe0ed222cce",
-                    "expectedControlType": "Vector2",
+                    "id": "04748852-e87a-45fe-9d5c-5e17b7c3616a",
+                    "expectedControlType": "Touch",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
+                    "name": "TouchPaddle",
+                    "type": "Value",
+                    "id": "7ebd6611-d555-4c62-880b-5905a2315f1a",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": true
@@ -100,28 +118,6 @@
                     "processors": "",
                     "groups": "Keyboard&Mouse",
                     "action": "LeftPaddle",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "0670d093-ef40-46e3-97ba-fead57bd3ba2",
-                    "path": "<Touchscreen>/position/x",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "Touch",
-                    "action": "LeftPaddle",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "c8cc494d-8ce1-4237-b949-d968393c68f9",
-                    "path": "<Touchscreen>/position/x",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "Touch",
-                    "action": "RightPaddle",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -292,33 +288,11 @@
                 },
                 {
                     "name": "",
-                    "id": "6314176f-eb66-44b9-955d-d9a5ebedf7af",
-                    "path": "<Touchscreen>/touch*/Press",
-                    "interactions": "MultiTap(tapCount=3)",
-                    "processors": "",
-                    "groups": "Touch",
-                    "action": "Pause",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
                     "id": "eec9a101-5d3c-4389-9a49-1d87b5b1ef9d",
                     "path": "<Mouse>/leftButton",
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "DragPress",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "e03122a7-b8ec-4649-8338-168f4f15e78d",
-                    "path": "<Touchscreen>/primaryTouch/tap",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "Touch",
                     "action": "DragPress",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -336,12 +310,23 @@
                 },
                 {
                     "name": "",
-                    "id": "b57788d1-1e5c-4ecc-b67d-b60f5b173d85",
-                    "path": "<Touchscreen>/primaryTouch/position",
+                    "id": "bba1ec82-dc7b-4601-aebc-7f3db69fbcc7",
+                    "path": "<Touchscreen>/primaryTouch",
                     "interactions": "",
                     "processors": "",
                     "groups": "Touch",
-                    "action": "DragPosition",
+                    "action": "TouchDragPress",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "b38c2658-d15f-4219-8712-317d518e6f8d",
+                    "path": "<Touchscreen>/touch*/Press",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Touch",
+                    "action": "TouchPaddle",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

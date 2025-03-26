@@ -1,7 +1,11 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
+using UnityEngine.InputSystem.EnhancedTouch;
+using UnityEngine.InputSystem.LowLevel;
 
 namespace Cool.Dcm.Game.PinBall
 {
@@ -75,7 +79,10 @@ namespace Cool.Dcm.Game.PinBall
         private bool isPaused = false;
 
         private BallController currentDragBall;//在发射位置 拖动的小球
-
+        void OnEnable()
+        {
+            TouchSimulation.Enable();
+        }
         void Start()
         {
             
@@ -100,8 +107,33 @@ namespace Cool.Dcm.Game.PinBall
 
         #region 处理用户输入
         private void HandleInput(InputAction.CallbackContext context){
+            Debug.Log($"HandleInput {context.action.name}==={context.phase}");
             switch (context.action.name)
             {
+                case "TouchPaddle":
+                    if (context.phase == InputActionPhase.Performed&&!isAtResetPosition)
+                    {
+                        TouchState state = context.ReadValue<TouchState>();
+                        Debug.Log($"TouchPaddle {state.phase}");
+                         
+                        if(state.position.x<Screen.width/2){
+                            if(state.phase == UnityEngine.InputSystem.TouchPhase.Began){
+                                leftPaddle.RotatePaddle(true);
+                            }
+                            if(state.phase == UnityEngine.InputSystem.TouchPhase.Ended){
+                                leftPaddle.RotatePaddle(false);
+                            }  
+                        }else{
+                            if(state.phase == UnityEngine.InputSystem.TouchPhase.Began){
+                                rightPaddle.RotatePaddle(true);
+                            }
+                            if(state.phase == UnityEngine.InputSystem.TouchPhase.Ended){
+                                rightPaddle.RotatePaddle(false);
+                            }
+                        }
+                        // leftPaddle.RotatePaddle(context.ReadValueAsButton());
+                    }
+                    break;
                 case "LeftPaddle":
                     if (context.phase == InputActionPhase.Performed&&!isAtResetPosition)
                     {
@@ -124,24 +156,43 @@ namespace Cool.Dcm.Game.PinBall
                     }
                     break;
                 case "ResetBall":
-                    Debug.Log($"ResetBall {context.ReadValueAsButton()}");
                     RestBallPos();
                     break;
                 case "DragPress":
-                    if (context.phase == InputActionPhase.Started)
+                    if (context.phase == InputActionPhase.Performed&&isAtResetPosition)
                     {
-                        StartDrag(context);
+                        StartDrag(startDragPosition);
                     }
-                    if (context.phase == InputActionPhase.Canceled)
+                    if (context.phase == InputActionPhase.Canceled&&isAtResetPosition)
                     {
-                        EndDrag(context);
+                        EndDrag();
                     }
                     break;
                 case "DragPosition":
-                    if(context.phase == InputActionPhase.Performed)
+                
+                    if(context.phase == InputActionPhase.Performed&&isAtResetPosition)
                     {
-                        InDrag(context);
-                    }                    
+                        InDrag(context.ReadValue<Vector2>());
+                    }
+                                        
+                    break;
+                case "TouchDragPress":
+                    if (context.phase == InputActionPhase.Performed&&isAtResetPosition)
+                    {
+                        TouchState state = context.ReadValue<TouchState>();
+                        if (state.phase == UnityEngine.InputSystem.TouchPhase.Began)
+                        {
+                            StartDrag(state.position);
+                        }
+                        if(state.phase == UnityEngine.InputSystem.TouchPhase.Moved)
+                        {
+                            InDrag(state.position);
+                        }
+                        if (state.phase == UnityEngine.InputSystem.TouchPhase.Ended)
+                        {
+                            EndDrag();
+                        }
+                    }
                     break;
             }
             
@@ -182,14 +233,13 @@ namespace Cool.Dcm.Game.PinBall
 
         #region 用户拖拽操作相关功能
         private Plane xzPlane = new Plane(Vector3.up, Vector3.zero);
-
         private Vector2 startDragPosition;
 
-        private void StartDrag(InputAction.CallbackContext context)
+        private void StartDrag(Vector3 starPos)
         {
+            
             // 获取点击时的屏幕位置
-            Ray ray = Camera.main.ScreenPointToRay(startDragPosition);
-
+            Ray ray = Camera.main.ScreenPointToRay(starPos);
             if (Physics.Raycast(ray, out RaycastHit hit))
             {
                 currentDragBall = hit.transform.GetComponent<BallController>();
@@ -197,7 +247,7 @@ namespace Cool.Dcm.Game.PinBall
                 if(currentDragBall != null && isAtResetPosition&& !isDragging) // 添加拖动状态检查
                 {
                     Debug.Log("Drag Ball");
-                    offset = currentDragBall.transform.position - GetMouseWorldPos(startDragPosition);
+                    offset = currentDragBall.transform.position - GetMouseWorldPos(starPos);
                     initialBallPosition = currentDragBall.transform.position;
                     currentDragBall.setDragRigidbody(true);
                     isDragging = true;
@@ -210,11 +260,11 @@ namespace Cool.Dcm.Game.PinBall
             }
         }
 
-        private void InDrag(InputAction.CallbackContext context){
+        private void InDrag(Vector2 value){
             if (isDragging && currentDragBall != null)
             {
                 // 获取当前鼠标位置并转换为世界坐标
-                Vector3 targetPos = GetMouseWorldPos(context.ReadValue<Vector2>()) + offset;
+                Vector3 targetPos = GetMouseWorldPos(value) + offset;
                 targetPos.y = currentDragBall.transform.position.y;
                 
                 // 限制拖拽范围
@@ -249,12 +299,11 @@ namespace Cool.Dcm.Game.PinBall
                 currentDragBall.MovePosition(newPos);
                 UpdateTrajectory();
             }else{
-                startDragPosition = context.ReadValue<Vector2>();
+                startDragPosition = value;
             }
-           
         }
 
-        private void EndDrag(InputAction.CallbackContext context)
+        private void EndDrag()
         {
             isDragging = false;
             if (currentDragBall != null)
@@ -275,10 +324,12 @@ namespace Cool.Dcm.Game.PinBall
                     isAtResetPosition = false; // 发射后立即更新状态
                     CameraController.Instance.SwitchToHitView();
                     trajectoryLine.positionCount = 0;
+                    return;
                 }
                 else
                 {
                     setBallPos(currentDragBall);
+                    trajectoryLine.positionCount = 0;
                     isAtResetPosition = true; // 更新位置状态
                 }
                 
@@ -286,6 +337,7 @@ namespace Cool.Dcm.Game.PinBall
                 
             }
             currentDragBall = null;
+            isAtResetPosition = true;
                 
         }
 
@@ -416,10 +468,6 @@ namespace Cool.Dcm.Game.PinBall
                 var mainBall  = GetMainBall();
                 setBallPos(mainBall);
                 isAtResetPosition= true;
-                // 添加额外验证
-                Debug.Log($"物理状态已重置 速度:{mainBall.GetComponent<Rigidbody>().velocity} 角速度:{mainBall.GetComponent<Rigidbody>().angularVelocity}");
-                Debug.Log($"Ball reset to position. Ready to drag: {isAtResetPosition}");
-                Debug.Log($"实际位置差异: {Vector3.Distance(mainBall.transform.position, resetPosition)}");
             }
         }
 
